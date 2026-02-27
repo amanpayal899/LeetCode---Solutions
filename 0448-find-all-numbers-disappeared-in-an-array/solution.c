@@ -1,22 +1,20 @@
 /**
  * Note: The returned array must be malloced, assume caller calls free().
  */
- #include<stdlib.h>
 int* findDisappearedNumbers(int* nums, int numsSize, int* returnSize) {
-   int* arr=(int*)malloc((numsSize)*sizeof(int));
-   int* arr2= (int*) calloc(numsSize,sizeof(int));
-    for(int i = 0 ; i<numsSize ; i++){
-       arr2[nums[i]-1] = -1;
-
+    int *arr1 = (int*)calloc(numsSize,sizeof(int));
+    int *result = (int*)calloc(numsSize,sizeof(int)) ;
+    for(int i=0 ; i<numsSize ; i++){
+        arr1[nums[i]-1] = 1;
     }
-    int j=0;
-    for( int i = 0 ; i<numsSize ; i++){
-        if(arr2[i] != -1 ){
-            arr[j] = i+1 ;
-            j++;
+
+    int j=0 ;
+    for(  int i=0 ; i<numsSize ; i++){
+        if( arr1[i] == 0 ){
+            result[j++] = i+1 ;
         }
     }
-    free(arr2);
+    free(arr1) ;
     *returnSize = j;
-    return arr;
+    return result ;
 }
