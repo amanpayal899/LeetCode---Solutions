@@ -11,8 +11,6 @@ bool judgeCircle(char* moves) {
         else if(moves[i] == 'L')
         r--;
     }
-    if(u==0 && r==0)
-    return true;
-    return false;
+    return (u==0 && r==0);
 }
 
