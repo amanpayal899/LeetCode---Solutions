@@ -1,15 +1,17 @@
 int maxDistance(int* colors, int colorsSize) {
-    int max_dis=0;
-    for( int i=0; i<colorsSize; i++ )
+    int maxDistance=0;
+    for(int i=0,j=colorsSize-1; j>i; )
     {
-        for( int j=colorsSize-1; j>i ; j-- )
+        if( colors[i]!=colors[j] )
         {
-            if(( colors[i]!=colors[j] ) && (j-i >= max_dis))
+            if( j-i > maxDistance )
             {
-                max_dis=j-i;
-                break;
+                maxDistance = j-i;  
             }
+            i++;
+            j=colorsSize-1;
         }
+        else j--;
     }
-    return max_dis;
+    return maxDistance;
 }
