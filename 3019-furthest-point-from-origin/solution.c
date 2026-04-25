@@ -1,24 +1,16 @@
 int furthestDistanceFromOrigin(char* moves) {
-    int rightposition=0, leftposition=0;
-    for( int i=0; moves[i]!= '\0'; i++ )
+    int _count=0, leftCount=0, rightCount=0;
+    for( int i=0; moves[i]!='\0'; i++ )
     {
         if( moves[i] == 'L' )
-        {
-            leftposition--;
-            rightposition--;
-        }
+        leftCount++;
         else if( moves[i] == 'R' )
-        {
-            rightposition++;
-            leftposition++;
-        }
+        rightCount++;
         else
-        {
-            rightposition ++;
-            leftposition --;
-        }
+        _count++;
     }
-    if( rightposition >= (-1 * leftposition ) )
-    return rightposition;
-    return -1 * leftposition;
+    if( rightCount >= leftCount )
+        return rightCount - leftCount + _count;
+    else
+        return leftCount - rightCount + _count;
 }
