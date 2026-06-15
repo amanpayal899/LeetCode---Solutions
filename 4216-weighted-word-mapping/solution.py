@@ -1,12 +1,11 @@
 class Solution:
     def mapWordWeights(self, words: List[str], weights: List[int]) -> str:
-        map = ""
+        alphabet_string = "abcdefghijklmnopqrstuvwxyz"
+        #weight           [__________________________]
+        result = ""
         for word in words:
-            n = len(word)
             sum = 0
-            for char in word:
-                sum += weights[ord(char) - ord('a')]
-            result = sum % 26
-            result = chr(ord('z') - result)
-            map = map + result
-        return map
+            for character in word:
+                sum += weights[alphabet_string.index(character)]
+            result += alphabet_string[25 - (sum % 26)]
+        return result
