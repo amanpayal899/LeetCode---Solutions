@@ -18,6 +18,6 @@
 ### ⚙️ Automation Environment Configuration
 * **Sync Engine:** `joshcai/leetcode-sync`
 * **Cron Execution Interval:** Every 6 hours (`0 */6 * * *`)
-* **Core Language:** C / Python
+* **Core Language:** Python / C
 
 _To locate a specific problem solution, search or match the corresponding LeetCode ID number directly with the numerical directory headings above._
