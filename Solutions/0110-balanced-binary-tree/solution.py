@@ -10,8 +10,10 @@ class Solution:
             if root is None:
                 return 0
             left = dfs(root.left)
+            if (left == -1):
+                return -1
             right = dfs(root.right)
-            if (left == -1) or (right == -1):
+            if (right == -1):
                 return -1
             if abs(left-right)>1:
                 return -1
