@@ -1,32 +1,22 @@
 class Solution:
     def floodFill(self, image: List[List[int]], sr: int, sc: int, color: int) -> List[List[int]]:
-        if color == image[sr][sc]:
-            return image
-        r = len(image)
-        c = len(image[0])
-        startColor = image[sr][sc]
-        image[sr][sc] = color
-        queue = deque()
-        queue.append((sr, sc))
+        iColor = image[sr][sc]
+        directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+        rows = len(image)
+        columns = len(image[0])
+        def dfs(i, j):
+            image[i][j] = color
+            for r, c in directions:
+                nr = i+r
+                nc = j+c
+                if -1<nr<rows and -1<nc<columns:
+                    if image[nr][nc] == iColor:
+                        dfs(nr, nc)
+            return
 
-        while queue:
-            size = len(queue)
-            while size>0:
-                i, j = queue.popleft()
-                if ( i>0 and image[i-1][j]==startColor ):
-                    queue.append((i-1, j))
-                    image[i-1][j] = color
-                if ( i<r-1 and image[i+1][j]==startColor ):
-                    queue.append((i+1, j))
-                    image[i+1][j] = color
-                if ( j>0 and image[i][j-1]==startColor ):
-                    queue.append((i, j-1))
-                    image[i][j-1] = color
-                if ( j<c-1 and image[i][j+1]==startColor ):
-                    queue.append((i, j+1))
-                    image[i][j+1] = color
-                size -= 1
-            
+        if color == iColor:
+            return image
+        dfs(sr, sc)
         return image
-                
+
 
