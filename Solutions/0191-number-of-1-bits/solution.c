@@ -1,9 +1,9 @@
 int hammingWeight(int n) {
-    int c = 0;
-    int temp = n;
-        while (temp>0){
-            c ++;
-            temp = (((~temp)+1)^temp)&temp;
-        }
-        return c;
+    int cpy = n;
+    int count = 0;
+    while( cpy>0){
+        cpy = cpy & (cpy-1);
+        count ++;
+    }
+    return count;
 }
