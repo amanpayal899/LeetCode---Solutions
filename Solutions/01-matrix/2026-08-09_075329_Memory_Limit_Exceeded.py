@@ -1,0 +1,34 @@
+# Problem: 01 Matrix
+# Status: Memory Limit Exceeded
+# Language: python3
+# Runtime: N/A
+# Memory: N/A
+# Submitted: 2026-08-09_075329 UTC
+# URL: https://leetcode.com/submissions/detail/2100079156/
+
+from collections import deque
+class Solution:
+    def nearestZero(self, cpy, i, j, rows, col):
+        queue = deque()
+        queue.append((i, j, 0))
+        while queue:
+            i, j, dis = queue.popleft()
+            for r, c in [[-1,0], [0, 1], [1, 0], [0, -1]]:
+                nr, nc = i+r, j+c
+                if nr>=rows or nr<0 or nc>=col or nc<0:
+                    continue
+                if cpy[nr][nc] == 0:
+                    return dis+1
+                queue.append((nr, nc, dis+1))
+
+                
+    def updateMatrix(self, mat: List[List[int]]) -> List[List[int]]:
+        cpy = copy.deepcopy(mat)
+        rows = len(mat)
+        col = len(mat[0])
+        for i in range(rows):
+            for j in range(col):
+                if cpy[i][j] == 0:
+                    continue
+                cpy[i][j] = self.nearestZero(cpy, i, j, rows, col)
+        return cpy

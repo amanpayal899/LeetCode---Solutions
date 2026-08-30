@@ -1,0 +1,28 @@
+# Problem: Minimum Absolute Distance Between Mirror Pairs
+# Status: Time Limit Exceeded
+# Language: c
+# Runtime: N/A
+# Memory: N/A
+# Submitted: 2026-04-17_202734 UTC
+# URL: https://leetcode.com/submissions/detail/1981269674/
+
+int minMirrorPairDistance(int* nums, int numsSize) {
+    int min_dis=-1;
+    for(int i=0; i<numsSize-1; i++){
+        int current=nums[i];
+        int rev_num=0;
+        while(current>0){
+            rev_num = rev_num*10 + current%10;
+            current /= 10;
+        }
+        for(int j=i+1; j<numsSize; j++){
+            if( rev_num == nums[j] ){
+                int temp = j-i;
+                if( min_dis==-1 || min_dis>temp ){
+                min_dis = temp;
+                }
+            }
+        }
+    }
+    return min_dis;
+}
