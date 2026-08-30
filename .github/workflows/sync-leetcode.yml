@@ -1,199 +1,61 @@
-#!/usr/bin/env python3
-"""
-Syncs ALL LeetCode submissions (accepted and unsuccessful) into a GitHub repo.
+name: Sync Leetcode
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 */1 * *" # Runs once a day
 
-Unlike joshcai/leetcode-sync (which only keeps Accepted runs), this script
-writes every submission into a per-problem subfolder, named by timestamp and
-status, so you get the full attempt history in one place.
+permissions:
+  contents: write
 
-Env vars required:
-  LEETCODE_SESSION      - value of the LEETCODE_SESSION cookie
-  LEETCODE_CSRF_TOKEN   - value of the csrftoken cookie
-Optional:
-  DESTINATION_FOLDER    - folder to write into (default: "Solutions")
-  STATE_FILE            - path to the JSON file tracking synced submission ids
-                           (default: "<DESTINATION_FOLDER>/.sync_state.json")
-"""
+concurrency:
+  group: leetcode-sync
+  cancel-in-progress: false
 
-import json
-import os
-import re
-import time
-from datetime import datetime, timezone
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-import requests
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-LEETCODE_SESSION = os.environ["LEETCODE_SESSION"]
-CSRF_TOKEN = os.environ["LEETCODE_CSRF_TOKEN"]
-DEST_FOLDER = os.environ.get("DESTINATION_FOLDER", "Solutions")
-STATE_FILE = os.environ.get("STATE_FILE", os.path.join(DEST_FOLDER, ".sync_state.json"))
+      - name: Install dependencies
+        run: pip install requests
 
-BASE_URL = "https://leetcode.com/api/submissions/"
+      - name: Sync all LeetCode submissions (accepted + unsuccessful)
+        env:
+          LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
+          LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
+          DESTINATION_FOLDER: "Solutions"
+        run: python sync_leetcode.py
 
-LANG_EXT = {
-    "python": "py",
-    "python3": "py",
-    "c": "c",
-    "cpp": "cpp",
-    "csharp": "cs",
-    "java": "java",
-    "javascript": "js",
-    "typescript": "ts",
-    "kotlin": "kt",
-    "swift": "swift",
-    "golang": "go",
-    "ruby": "rb",
-    "scala": "scala",
-    "rust": "rs",
-    "php": "php",
-    "erlang": "erl",
-    "elixir": "ex",
-    "dart": "dart",
-    "racket": "rkt",
-    "mysql": "sql",
-    "mssql": "sql",
-    "oraclesql": "sql",
-}
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "Solutions"
+          if git diff --cached --quiet; then
+            echo "No new submissions to commit."
+            exit 0
+          fi
+          git commit -m "Sync LeetCode submissions (accepted + unsuccessful)"
 
+          # The remote may have moved since checkout (e.g. an overlapping
+          # run, or another push). Retry with a rebase pull a few times
+          # before giving up.
+          for attempt in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed successfully."
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt/5), pulling and retrying..."
+            git pull --rebase origin main
+            sleep 5
+          done
 
-def sanitize(name: str) -> str:
-    name = name.strip().replace(" ", "_")
-    return re.sub(r"[^A-Za-z0-9_.-]", "", name)
-
-
-def load_state():
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            return set(json.load(f))
-    return set()
-
-
-def save_state(seen_ids):
-    os.makedirs(os.path.dirname(STATE_FILE) or ".", exist_ok=True)
-    with open(STATE_FILE, "w") as f:
-        json.dump(sorted(seen_ids), f, indent=2)
-
-
-REQUEST_DELAY_SECS = float(os.environ.get("REQUEST_DELAY_SECS", "3"))
-MAX_RETRIES = 4
-
-
-def fetch_page(session: requests.Session, offset: int, limit: int):
-    """Fetch one page, retrying with backoff on 403/429. Returns parsed JSON,
-    or None if the page could not be fetched after retries (caller should
-    stop pagination but keep whatever was already synced)."""
-    for attempt in range(1, MAX_RETRIES + 1):
-        resp = session.get(
-            BASE_URL,
-            params={"offset": offset, "limit": limit},
-            timeout=30,
-        )
-        if resp.status_code in (403, 429):
-            wait = REQUEST_DELAY_SECS * (2 ** attempt)
-            print(
-                f"Got {resp.status_code} at offset {offset} "
-                f"(attempt {attempt}/{MAX_RETRIES}); backing off {wait:.0f}s..."
-            )
-            time.sleep(wait)
-            continue
-        resp.raise_for_status()
-        return resp.json()
-    return None
-
-
-def main():
-    session = requests.Session()
-    session.cookies.set("LEETCODE_SESSION", LEETCODE_SESSION, domain="leetcode.com")
-    session.cookies.set("csrftoken", CSRF_TOKEN, domain="leetcode.com")
-    session.headers.update(
-        {
-            "Referer": "https://leetcode.com/",
-            "x-csrftoken": CSRF_TOKEN,
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9",
-        }
-    )
-
-    seen_ids = load_state()
-    new_count = 0
-    offset = 0
-    limit = 20
-    stopped_early = False
-
-    try:
-        while True:
-            data = fetch_page(session, offset, limit)
-            if data is None:
-                # Couldn't get this page even after retries - stop here,
-                # but keep everything synced so far.
-                print(f"Giving up on offset {offset} after {MAX_RETRIES} retries.")
-                stopped_early = True
-                break
-
-            submissions = data.get("submissions_dump", [])
-            if not submissions:
-                break
-
-            reached_known = False
-            for sub in submissions:
-                sub_id = str(sub.get("id"))
-                if sub_id in seen_ids:
-                    # Submissions come back newest-first; once we hit one
-                    # we've already synced, everything after it is old too.
-                    reached_known = True
-                    break
-
-                title_slug = sub.get("title_slug") or sanitize(sub.get("title", "unknown"))
-                status = sanitize(sub.get("status_display", "Unknown"))
-                lang = sub.get("lang", "txt")
-                ext = LANG_EXT.get(lang, lang)
-                ts = int(sub.get("timestamp", time.time()))
-                dt = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d_%H%M%S")
-
-                problem_dir = os.path.join(DEST_FOLDER, title_slug)
-                os.makedirs(problem_dir, exist_ok=True)
-
-                filename = f"{dt}_{status}.{ext}"
-                filepath = os.path.join(problem_dir, filename)
-
-                code = sub.get("code", "")
-                header = (
-                    f"# Problem: {sub.get('title', title_slug)}\n"
-                    f"# Status: {sub.get('status_display')}\n"
-                    f"# Language: {lang}\n"
-                    f"# Runtime: {sub.get('runtime', 'N/A')}\n"
-                    f"# Memory: {sub.get('memory', 'N/A')}\n"
-                    f"# Submitted: {dt} UTC\n"
-                    f"# URL: https://leetcode.com{sub.get('url', '')}\n\n"
-                )
-
-                with open(filepath, "w") as f:
-                    f.write(header + code)
-
-                seen_ids.add(sub_id)
-                new_count += 1
-
-            if reached_known or not data.get("has_next"):
-                break
-
-            offset += limit
-            time.sleep(REQUEST_DELAY_SECS)
-    finally:
-        # Always save whatever we managed to sync, even if we bailed out
-        # early due to rate limiting or an unexpected error.
-        save_state(seen_ids)
-
-    print(f"Synced {new_count} new submission(s).")
-    if stopped_early:
-        print(
-            "Stopped early due to rate limiting - re-run the workflow again "
-            "(manually, or wait for the next schedule) to pick up where this left off."
-        )
-
-
-if __name__ == "__main__":
-    main()
+          echo "Failed to push after retries."
+          exit 1
